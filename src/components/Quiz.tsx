@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import QuizProgress from "./QuizProgress";
 import MultipleChoice from "./MultipleChoice";
 import DragAndDrop from "./DragAndDrop";
+import { Button } from "./ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface Question {
   id: number;
@@ -63,9 +65,13 @@ const Quiz = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState<Record<number, any>>({});
+  const [isComplete, setIsComplete] = useState(false);
+  const { toast } = useToast();
 
   const currentQuestion = questions[currentQuestionIndex];
   const totalPoints = questions.reduce((sum, q) => sum + q.points, 0);
+  const isLastQuestion = currentQuestionIndex === questions.length - 1;
+  const hasAnsweredCurrentQuestion = answers[currentQuestion.id] !== undefined;
 
   const handleAnswer = (answer: any) => {
     const newAnswers = { ...answers, [currentQuestion.id]: answer };
@@ -76,20 +82,29 @@ const Quiz = () => {
         setScore((prev) => prev + currentQuestion.points);
       }
     } else if (currentQuestion.type === "drag-drop") {
-      // Calculate score for drag-drop based on correct matches
       const correctMatches = answer.filter(
         (match: any) =>
           match.itemId === match.targetId.replace("-def", "")
       ).length;
-      const pointsPerMatch = currentQuestion.points / 4; // Assuming 4 matches
+      const pointsPerMatch = currentQuestion.points / 4;
       setScore((prev) => prev + correctMatches * pointsPerMatch);
     }
 
-    if (currentQuestionIndex < questions.length - 1) {
+    if (!isLastQuestion) {
       setTimeout(() => {
         setCurrentQuestionIndex((prev) => prev + 1);
       }, 500);
     }
+  };
+
+  const handleSubmit = () => {
+    setIsComplete(true);
+    const percentage = Math.round((score / totalPoints) * 100);
+    toast({
+      title: "Quiz Complete! 🎉",
+      description: `You scored ${score} out of ${totalPoints} points (${percentage}%)`,
+      duration: 5000,
+    });
   };
 
   return (
@@ -142,6 +157,39 @@ const Quiz = () => {
                 matches={currentQuestion.matches || []}
                 onMatch={handleAnswer}
               />
+            )}
+
+            {isLastQuestion && hasAnsweredCurrentQuestion && !isComplete && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-8"
+              >
+                <Button
+                  onClick={handleSubmit}
+                  className="w-full bg-quiz-purple hover:bg-quiz-purple/90"
+                >
+                  Submit Quiz
+                </Button>
+              </motion.div>
+            )}
+
+            {isComplete && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mt-8 p-6 bg-quiz-purple-light rounded-lg text-center"
+              >
+                <h2 className="text-2xl font-bold text-quiz-purple mb-2">
+                  Quiz Complete! 🎉
+                </h2>
+                <p className="text-gray-600">
+                  You scored {score} out of {totalPoints} points
+                </p>
+                <p className="text-gray-600">
+                  ({Math.round((score / totalPoints) * 100)}%)
+                </p>
+              </motion.div>
             )}
           </motion.div>
         </div>
